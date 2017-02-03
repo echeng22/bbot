@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="bbot">
+
+    <xacro:property name="linear_stage_width" value="1"/>
+    <xacro:property name="linear_stage_length" value="1"/>
+    <xacro:property name="linear_stage_height" value=".1"/>
+
+    <xacro:property name="passive_stage_width" value=".5"/>
+    <xacro:property name="passive_stage_length" value=".5"/>
+    <xacro:property name="passive_stage_height" value=".1"/>
+
+    <xacro:property name="socket_link_length" value=".5"/>
+    <xacro:property name="socket_link_radius" value=".1"/>
+
+    <xacro:property name="bs_radius" value=".15"/>
+
+    <xacro:property name="ee_link_length" value=".05"/>
+    <xacro:property name="ee_link_radius" value=".05"/>
+
+    <xacro:property name="ee_stage_width" value=".5"/>
+    <xacro:property name="ee_stage_length" value=".5"/>
+    <xacro:property name="ee_stage_height" value=".05"/>
+
+    <link name="world"/>
+
+    <link name="stage_base">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="${linear_stage_width} ${linear_stage_length} ${linear_stage_height}"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="stage_planar"/>
+
+    <link name="stage_passive">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="${passive_stage_width} ${passive_stage_length} ${passive_stage_height}"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="passive_planar"/>
+
+    <link name="socket_link">
+        <visual>
+            <origin xyz="0 0 ${socket_link_length/2}" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="${socket_link_radius}" length="${socket_link_length}"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="bs_link_1"/>
+    <link name="bs_link_2"/>
+    <link name="bs_link_3"/>
+
+    <link name="bs_visual">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <sphere radius="${bs_radius}"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="ee_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="${ee_link_radius}" length="${ee_link_length}"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="ee_stage">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="${ee_stage_width} ${ee_stage_length} ${ee_stage_height}"/>
+            </geometry>
+        </visual>
+    </link>
+
+
+
+    <joint name="stage_base_z" type="prismatic">
+        <parent link="world"/>
+        <child link="stage_base"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+
+    <joint name="stage_base_xy" type="planar">
+        <parent link="stage_base"/>
+        <child link="stage_planar"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <joint name="passive_stage_z" type="prismatic">
+        <parent link="stage_planar"/>
+        <child link="stage_passive"/>
+        <origin xyz="0 0 ${linear_stage_height}" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+
+    <joint name="passive_base_xy" type="planar">
+        <parent link="stage_passive"/>
+        <child link="passive_planar"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <joint name="base_to_socket" type="fixed">
+        <parent link="passive_planar"/>
+        <child link="socket_link"/>
+        <origin xyz="0 0 ${passive_stage_height/2}" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="ball_socket_1" type="continous">
+        <parent link="socket_link"/>
+        <child link="bs_link_1"/>
+        <origin xyz="0 0 ${socket_link_length + bs_radius}" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <joint name="ball_socket_2" type="continous">
+        <parent link="bs_link_1"/>
+        <child link="bs_link_2"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <joint name="ball_socket_3" type="continous">
+        <parent link="bs_link_2"/>
+        <child link="bs_link_3"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+
+    <joint name="ball_socket_4" type="fixed">
+        <parent link="bs_link_3"/>
+        <child link="bs_visual"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="ee_joint" type="fixed">
+        <parent link="bs_visual"/>
+        <child link="ee_link"/>
+        <origin xyz="0 0 ${bs_radius + ee_link_length/2}" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="end_joint" type="fixed">
+        <parent link="ee_link"/>
+        <child link="ee_stage"/>
+        <origin xyz="0 0 ${ee_link_length/2 + ee_stage_height/2}" rpy="0 0 0"/>
+    </joint>
+
+</robot>
+
+
