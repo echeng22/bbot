@@ -13,7 +13,8 @@
       </geometry>
     </visual>
   </link>
-  <link name="stage_planar"/>
+  <link name="stage_x_to_y"/>
+  <link name="stage_y_to_passive"/>
   <link name="stage_passive">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -22,7 +23,8 @@
       </geometry>
     </visual>
   </link>
-  <link name="passive_planar"/>
+  <link name="passive_x_to_y"/>
+  <link name="passive_y_to_socket"/>
   <link name="socket_link">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0.25"/>
@@ -61,49 +63,70 @@
   <joint name="stage_base_z" type="prismatic">
     <parent link="world"/>
     <child link="stage_base"/>
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.05"/>
     <axis xyz="0 0 1"/>
+    <limit effort="1.0" lower="-0.3" upper="0.3" velocity="1.0"/>
   </joint>
-  <joint name="stage_base_xy" type="planar">
+  <joint name="stage_base_x" type="prismatic">
     <parent link="stage_base"/>
-    <child link="stage_planar"/>
+    <child link="stage_x_to_y"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="1 0 0"/>
+    <limit effort="1.0" lower="-0.3" upper="0.3" velocity="1.0"/>
+  </joint>
+  <joint name="stage_base_y" type="prismatic">
+    <parent link="stage_x_to_y"/>
+    <child link="stage_y_to_passive"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="1.0" lower="-0.3" upper="0.3" velocity="1.0"/>
   </joint>
   <joint name="passive_stage_z" type="prismatic">
-    <parent link="stage_planar"/>
+    <parent link="stage_y_to_passive"/>
     <child link="stage_passive"/>
     <origin rpy="0 0 0" xyz="0 0 0.1"/>
     <axis xyz="0 0 1"/>
+    <limit effort="1.0" lower="-0.2" upper="0.2" velocity="1.0"/>
   </joint>
-  <joint name="passive_base_xy" type="planar">
+  <joint name="passive_stage_x" type="prismatic">
     <parent link="stage_passive"/>
-    <child link="passive_planar"/>
+    <child link="passive_x_to_y"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="1 0 0"/>
+    <limit effort="1.0" lower="-0.2" upper="0.2" velocity="1.0"/>
+  </joint>
+  <joint name="passive_stage_y" type="prismatic">
+    <parent link="passive_x_to_y"/>
+    <child link="passive_y_to_socket"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="1.0" lower="-0.2" upper="0.2" velocity="1.0"/>
   </joint>
   <joint name="base_to_socket" type="fixed">
-    <parent link="passive_planar"/>
+    <parent link="passive_y_to_socket"/>
     <child link="socket_link"/>
     <origin rpy="0 0 0" xyz="0 0 0.05"/>
   </joint>
-  <joint name="ball_socket_1" type="continous">
+  <joint name="ball_socket_1" type="revolute">
     <parent link="socket_link"/>
     <child link="bs_link_1"/>
     <origin rpy="0 0 0" xyz="0 0 0.65"/>
     <axis xyz="1 0 0"/>
+    <limit effort="1.0" lower="-1.57" upper="1.57" velocity="1.0"/>
   </joint>
-  <joint name="ball_socket_2" type="continous">
+  <joint name="ball_socket_2" type="revolute">
     <parent link="bs_link_1"/>
     <child link="bs_link_2"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 1 0"/>
+    <limit effort="1.0" lower="-1.57" upper="1.57" velocity="1.0"/>
   </joint>
-  <joint name="ball_socket_3" type="continous">
+  <joint name="ball_socket_3" type="revolute">
     <parent link="bs_link_2"/>
     <child link="bs_link_3"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
+    <limit effort="1.0" lower="-1.57" upper="1.57" velocity="1.0"/>
   </joint>
   <joint name="ball_socket_4" type="fixed">
     <parent link="bs_link_3"/>
