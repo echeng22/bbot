@@ -5,8 +5,10 @@
     <xacro:property name="joint_velocity_limit" value="1.0"/>
     <xacro:property name="socket_effort_limit" value="100"/>
     <xacro:property name="socket_velocity_limit" value="1.0"/>
-    <xacro:property name="bs_lower_limit" value="-1.57"/>
-    <xacro:property name="bs_upper_limit" value="1.57"/>
+    <xacro:property name="bs_xy_lower_limit" value="-1.57"/>
+    <xacro:property name="bs_xy_upper_limit" value="1.57"/>
+    <xacro:property name="bs_z_lower_limit" value="-6.28"/>
+    <xacro:property name="bs_z_upper_limit" value="6.28"/>
 
     <xacro:property name="linear_stage_width" value="1"/>
     <xacro:property name="linear_stage_length" value="1"/>
@@ -51,8 +53,9 @@
         </visual>
     </link>
 
+    <link name="stage_z_to_x"/>
     <link name="stage_x_to_y"/>
-    <link name="stage_y_to_passive"/>
+    <link name="linear_to_passive"/>
 
     <link name="stage_passive">
         <visual>
@@ -63,8 +66,9 @@
         </visual>
     </link>
 
+    <link name="passive_z_to_x"/>
     <link name="passive_x_to_y"/>
-    <link name="passive_y_to_socket"/>
+    <link name="passive_to_socket"/>
 
     <link name="socket_link">
         <visual>
@@ -107,17 +111,16 @@
     </link>
 
 
-
     <joint name="stage_base_z" type="prismatic">
         <parent link="world"/>
-        <child link="stage_base"/>
+        <child link="stage_z_to_x"/>
         <origin xyz="0 0 ${linear_stage_height/2}" rpy="0 0 0"/>
         <axis xyz="0 0 1"/>
         <limit effort="${joint_velocity_limit}" velocity="${joint_velocity_limit}" lower="${linear_z_lower_lim}" upper="${linear_z_upper_lim}"/>
     </joint>
 
     <joint name="stage_base_x" type="prismatic">
-        <parent link="stage_base"/>
+        <parent link="stage_z_to_x"/>
         <child link="stage_x_to_y"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="1 0 0"/>
@@ -126,22 +129,28 @@
 
     <joint name="stage_base_y" type="prismatic">
         <parent link="stage_x_to_y"/>
-        <child link="stage_y_to_passive"/>
+        <child link="stage_base"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         <limit effort="${joint_velocity_limit}" velocity="${joint_velocity_limit}" lower="${linear_y_lower_lim}" upper="${linear_y_upper_lim}"/>
     </joint>
 
+    <joint name="linear_to_passive" type="fixed">
+        <parent link="stage_base"/>
+        <child link="linear_to_passive"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
     <joint name="passive_stage_z" type="prismatic">
-        <parent link="stage_y_to_passive"/>
-        <child link="stage_passive"/>
+        <parent link="linear_to_passive"/>
+        <child link="passive_z_to_x"/>
         <origin xyz="0 0 ${linear_stage_height/2 + passive_stage_height/2}" rpy="0 0 0"/>
         <axis xyz="0 0 1"/>
         <limit effort="${joint_velocity_limit}" velocity="${joint_velocity_limit}" lower="${passive_z_lower_lim}" upper="${passive_z_upper_lim}"/>
     </joint>
 
     <joint name="passive_stage_x" type="prismatic">
-        <parent link="stage_passive"/>
+        <parent link="passive_z_to_x"/>
         <child link="passive_x_to_y"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="1 0 0"/>
@@ -150,14 +159,14 @@
 
     <joint name="passive_stage_y" type="prismatic">
         <parent link="passive_x_to_y"/>
-        <child link="passive_y_to_socket"/>
+        <child link="stage_passive"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
         <limit effort="${joint_velocity_limit}" velocity="${joint_velocity_limit}" lower="${passive_y_lower_lim}" upper="${passive_y_upper_lim}"/>
     </joint>
 
     <joint name="base_to_socket" type="fixed">
-        <parent link="passive_y_to_socket"/>
+        <parent link="stage_passive"/>
         <child link="socket_link"/>
         <origin xyz="0 0 ${passive_stage_height/2}" rpy="0 0 0"/>
     </joint>
@@ -167,7 +176,7 @@
         <child link="bs_link_1"/>
         <origin xyz="0 0 ${socket_link_length + bs_radius}" rpy="0 0 0"/>
         <axis xyz="1 0 0"/>
-        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_lower_limit}" upper="${bs_upper_limit}"/>
+        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_xy_lower_limit}" upper="${bs_xy_upper_limit}"/>
     </joint>
 
     <joint name="ball_socket_y" type="revolute">
@@ -175,7 +184,7 @@
         <child link="bs_link_2"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
-        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_lower_limit}" upper="${bs_upper_limit}"/>
+        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_xy_lower_limit}" upper="${bs_xy_upper_limit}"/>
     </joint>
 
     <joint name="ball_socket_z" type="revolute">
@@ -183,7 +192,7 @@
         <child link="bs_link_3"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 0 1"/>
-        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_lower_limit}" upper="${bs_upper_limit}"/>
+        <limit effort="${socket_velocity_limit}" velocity="${socket_velocity_limit}" lower="${bs_z_lower_limit}" upper="${bs_z_upper_limit}"/>
     </joint>
 
     <joint name="ball_socket_4" type="fixed">
