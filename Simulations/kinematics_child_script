@@ -1,0 +1,287 @@
+function deg2rad(deg)
+   return deg*math.pi/180
+end
+
+function rad2deg(rad)
+   return rad*180/math.pi
+end
+
+function nullFunc(arg)
+   return arg
+end
+
+function toggleRadians(ui,id,newVal)
+   if (newVal==2) then
+      angleTo = deg2rad
+      angleFrom = rad2deg
+   else
+      angleTo = nullFunc
+      angleFrom = nullFunc
+   end
+end
+
+applyJoints=function(joints)
+    for i=1,3,1 do
+        simSetJointPosition(linear_h[i],joints[i])
+        simSetJointPosition(passive_h[i],joints[i + 3])
+        simSetJointPosition(bs_h[i],joints[i + 6])
+    end
+end
+
+getJoints=function(jointHandles,angles)
+   angles={0,0,0,0,0,0}
+   for i=1,#jointHandles,1 do
+      angles[i]=simGetJointPosition(jointHandles[i])
+   end
+   return angles
+end
+
+function changeAllSliders(ui,q)
+   for i=1,6,1 do
+      simExtCustomUI_setSliderValue(ui,3999+i,q[i]*1000)
+      simExtCustomUI_setLabelText(ui,2999+i,string.format('Reference = %+6.3f',q[i]))
+   end
+end
+
+function sliderChange(ui,id,newVal)
+   for i=1,9,1 do
+      if (id==3999+i) then
+         simExtCustomUI_setLabelText(ui,2999+i,string.format('Reference = %+6.3f',newVal/1000))
+         ref_ang[i]=newVal/1000
+         break
+      end
+   end
+end
+
+function jointEntry(ui,id,newVal)
+   local value = tonumber(newVal)
+    if (value==nil) then
+        print("Could not convert number..."..newVal)
+    return
+    end
+   if(id > 7006) then
+      if (value >= 2*math.pi) then
+         print("Clipping angle to 2pi")
+         value = 2*math.pi
+      end
+      if (value <= -2*math.pi) then
+         print("Clipping angle to -2pi")
+         value = -2*math.pi
+      end
+   end
+     local i = id - 6999
+     simAuxiliaryConsolePrint(consoleHandle, tostring(index).."\n")
+     simAuxiliaryConsolePrint(consoleHandle, tostring(value).."\n")
+     simAuxiliaryConsolePrint(consoleHandle, tostring(2999 + i).."\n")
+     simExtCustomUI_setLabelText(ui,2999+i,string.format('Reference = %+6.3f',value))
+     ref_ang[i]=value
+end
+
+function closeEventHandler(h)
+    simAddStatusbarMessage('Window '..h..' is closing...')
+    simExtCustomUI_hide(h)
+end
+
+if (sim_call_type==sim_childscriptcall_initialization) then
+   --   Joint limits:
+   --       Prismatic Joints:
+   --           Linear Stage (meters):
+   --               x: (-.3, .3)
+   --               y: (-.3, .3)
+   --               z: (-.3, .3)
+   --           Passive Stage (meters):
+   --               x: (-.2, .2)
+   --               y: (-.2, .2)
+   --               z: (-.2, .2)
+   --       Socket Joints:
+   --           Ball Socket (degree:
+   --               x: (-90, 90)
+   --               y: (-90, 90)
+   --               z: (-90, 90)
+
+   xml = [[
+  <ui closeable="false" onclose="closeEventHandler" resizable="true">
+     <tabs>
+       <tab title="CSV Playback">
+         <group layout="vbox">
+           <label text="<big> Enter CSV Filename:</big>" id="1000" wordwrap="false" style="font-weight: bold;"/>
+           <group layout="hbox">
+             <edit value="" id="1001" />
+             <button text="Open File" onclick="parseCSVFile" id="2000" />
+           </group>
+           <label text="<big> Controls</big>" id="1005" wordwrap="false" style="font-weight: bold;"/>
+           <group layout="grid">
+             <button text="Play" onclick="playPressed" />
+             <button text="Pause" onclick="pausePressed" />
+             <button text="Stop" onclick="stopPressed" />
+             <button text="Step" onclick="stepPressed" />
+             <br/>
+             <label text="Time Multiplier" />
+             <button text="Increase" onclick="increaseSpeed" />
+             <button text="Decrease" onclick="decreaseSpeed" />
+             <edit id="1006" value="1.0" oneditingfinished="parseEnteredSpeed" />
+           </group>
+           <label text="Time" />
+           <hslider id="4000" tick-position="below" tick-interval="500" minimum="0" maximum="10000" onchange="timeSliderChange"/>
+           <label text="<big> Messages:</big>" id="1002" wordwrap="false" style="font-weight: bold;"/>
+           <group layout="vbox">
+              <label value="" id="1003" wordwrap="true" />
+            </group>
+          </group>
+         <stretch />
+       </tab>
+
+       <tab title="Joint Angle Sliders">
+         <group layout="grid" >
+           <group>
+                 <group layout="grid">
+                   <label text="<big>Linear X:</big>" id="6000" wordwrap="false" style="font-weight: bold;"/>
+                   <label text="Reference =  0.000" id="3000" wordwrap="false" />
+                 </group>
+                <hslider id="4000" tick-position="above" tick-interval="1000" minimum="-300" maximum="300" onchange="sliderChange" />
+                <group layout="grid">
+                  <label text="Enter Value:" />
+                  <edit value="" id="7000" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                 <group layout="grid">
+                   <label text="<big>Linear Y:</big>" id="6001" wordwrap="false" style="font-weight: bold;"/>
+                   <label text="Reference =  0.000" id="3001" wordwrap="false" />
+                 </group>
+                 <hslider id="4001" tick-position="above" tick-interval="1000" minimum="-300" maximum="300" onchange="sliderChange" />
+                 <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7001" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                 <group layout="grid">
+                   <label text="<big>Linear Z</big>" id="6002" wordwrap="false" style="font-weight: bold;"/>
+                   <label text="Reference =  0.000" id="3002" wordwrap="false" />
+                 </group>
+                 <hslider id="4002" tick-position="above" tick-interval="1000" minimum="-300" maximum="300" onchange="sliderChange" />
+                 <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7002" oneditingfinished="jointEntry" />
+                 </group>
+           </group>
+
+           <br/>
+
+           <group>
+                <group layout="grid">
+                  <label text="<big>Passive X: </big>" id="6003" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3003" wordwrap="false" />
+                </group>
+                <hslider id="4003" tick-position="above" tick-interval="1000" minimum="-200" maximum="200" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7003" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                <group layout="grid">
+                  <label text="<big>Passive Y:</big>" id="6004" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3004" wordwrap="false" />
+                </group>
+                <hslider id="4004" tick-position="above" tick-interval="1000" minimum="-200" maximum="200" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7004" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                <group layout="grid">
+                  <label text="<big>Passive Z: </big>" id="6005" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3005" wordwrap="false" />
+                </group>
+                <hslider id="4005" tick-position="above" tick-interval="1000" minimum="-200" maximum="200" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7005" oneditingfinished="jointEntry" />
+                </group>
+            </group>
+
+           <br/>
+
+            <group>
+                <group layout="grid">
+                  <label text="<big>Socket X: </big>" id="6006" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3006" wordwrap="false" />
+                </group>
+                <hslider id="4006" tick-position="above" tick-interval="1000" minimum="-1571" maximum="1571" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7006" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                <group layout="grid">
+                  <label text="<big>Socket Y:</big>" id="6007" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3007" wordwrap="false" />
+                </group>
+                <hslider id="4007" tick-position="above" tick-interval="1000" minimum="-1571" maximum="1571" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7007" oneditingfinished="jointEntry" />
+                </group>
+           </group>
+
+           <group>
+                <group layout="grid">
+                  <label text="<big>Socket Z: </big>" id="6008" wordwrap="false" style="font-weight: bold;"/>
+                  <label text="Reference =  0.000" id="3008" wordwrap="false" />
+                </group>
+                <hslider id="4008" tick-position="above" tick-interval="1000" minimum="-6280" maximum="6280" onchange="sliderChange" />
+                <group layout="grid">
+                    <label text="Enter Value:" />
+                    <edit value="" id="7008" oneditingfinished="jointEntry" />
+                </group>
+            </group>
+         </group>
+       </tab>
+
+    </tabs>
+</ui>
+]]
+    consoleHandle = simAuxiliaryConsoleOpen('Debug', 20, 1)
+    simAuxiliaryConsolePrint(consoleHandle, 'This is a test!\n')
+    ui=simExtCustomUI_create(xml)
+    simAuxiliaryConsolePrint(consoleHandle, 'This is a test 2!\n')
+    -- Store Joint Handles in List
+    xyz={'x','y','z'}
+    linear_h = {-1, -1, -1}
+    passive_h = {-1, -1, -1}
+    bs_h = {-1, -1, -1}
+    for i=1,3,1 do
+        linear_h[i]=simGetObjectHandle('stage_base_'..xyz[i])
+        passive_h[i]=simGetObjectHandle('passive_stage_'..xyz[i])
+        bs_h[i]=simGetObjectHandle('ball_socket_'..xyz[i])
+    end
+    -- array for initial values
+    -- List is in order of {Linear xyz, passive xyz , Socket xyz}
+    ref_ang={0,0,0,0,0,0,0,0,0}
+    -- array for storing when angles where manually entered
+    enteredString=""
+    -- angle parsing
+    toggleRadians(ui,0,0)
+end
+
+
+if (sim_call_type==sim_childscriptcall_actuation) then
+   applyJoints(ref_ang)
+end
+
+if (sim_call_type==sim_childscriptcall_sensing) then
+
+end
+
+if (sim_call_type==sim_childscriptcall_cleanup) then
+    simExtCustomUI_destroy(ui)
+end
