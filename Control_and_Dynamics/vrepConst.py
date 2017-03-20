@@ -1,1 +1,0 @@
-/home/freelancer/Documents/winterProject/V-REP_PRO_EDU_V3_3_2_64_Linux/programming/remoteApiBindings/python/python/vrepConst.py
