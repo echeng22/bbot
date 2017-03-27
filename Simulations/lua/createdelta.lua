@@ -51,6 +51,7 @@ function createBaseJoints()
     for i=1,3,1 do
       local joint = simCreateJoint(sim_joint_revolute_subtype, sim_jointmode_force, 0)
       simSetObjectName(joint, "R"..tostring(i).."_B")
+      simSetObjectInt32Parameter(joint, 2000,1) --Enables motor
       jointHandles[i] = joint
     end
 end
@@ -62,12 +63,34 @@ function createLinkJoints()
     for i=1,3,1 do
       local prlJoint = simCreateJoint(sim_joint_revolute_subtype, sim_jointmode_force, 0)
       simSetObjectName(prlJoint, "U"..tostring(i).."_J_PRLB")
+      simSetObjectInt32Parameter(prlJoint, 2000,1) --Enables motor
       linkJHandles[i] = prlJoint
     end
     for i=4,6,1 do
       local ppdJoint = simCreateJoint(sim_joint_revolute_subtype, sim_jointmode_force, 0)
-      simSetObjectName(ppdJoint, "U"..tostring(i - 3).."_J_PPD")
+      simSetObjectName(ppdJoint, "U"..tostring(i - 3).."_J_PPDB")
+      simSetObjectInt32Parameter(ppdJoint, 2000,1) --Enables motor
+      simSetJointInterval(ppdJoint, false, {-math.pi/4, math.pi/2})
       linkJHandles[i] = ppdJoint
+    end
+end
+
+function createEEJoints()
+    eeJHandles = {} -- Global list of ee universal joint handles. Will be in the order of Leg 1,2,3, 1,2,3. Parallel first half, Perpendicular last half
+    local prlJoint = nil
+    local ppdJoint = nil
+    for i=1,3,1 do
+      local prlJoint = simCreateJoint(sim_joint_revolute_subtype, sim_jointmode_force, 0)
+      simSetObjectName(prlJoint, "U"..tostring(i).."_EE_PRLB")
+      simSetObjectInt32Parameter(prlJoint, 2000,1)
+      eeJHandles[i] = prlJoint
+    end
+    for i=4,6,1 do
+      local ppdJoint = simCreateJoint(sim_joint_revolute_subtype, sim_jointmode_force, 0)
+      simSetObjectName(ppdJoint, "U"..tostring(i - 3).."_EE_PPDB")
+      simSetObjectInt32Parameter(ppdJoint, 2000,1)
+      simSetJointInterval(ppdJoint, false, {-math.pi/4, math.pi/2})
+      eeJHandles[i] = ppdJoint
     end
 end
 
@@ -77,14 +100,14 @@ function createLinks(linkDiameter)
     for i=1,3,1 do -- Loop to create lower links
       link = simCreatePureShape(2,10,{linkDiameter, 0, modelParam.l1}, 1)
       simSetObjectName(link, "Link"..tostring(i).."_1")
-      simSetObjectInt32Parameter(link, 3019,tonumber("1111000011111111",2))
+      simSetObjectInt32Parameter(link, 3019,tonumber("1111111100001111",2))
       linkHandles[i] = link
     end
 
     for i=4,6,1 do -- Loop to create upper links
       link = simCreatePureShape(2,10,{linkDiameter, 0, modelParam.l2}, 1)
       simSetObjectName(link, "Link"..tostring(i - 3).."_2")
-      simSetObjectInt32Parameter(link, 3019,tonumber("0000111111111111",2))
+      simSetObjectInt32Parameter(link, 3019,tonumber("1111111111110000",2))
       linkHandles[i] = link
     end
 end
@@ -92,18 +115,41 @@ end
 function createJointConnect()
     jConnectHandles = {}
     local connect = nil
-    for i=1,3,1 do -- Loop to create lower links
-      connect = simCreatePureShape(1,10,{.02, 0, 0}, 1)
+    for i=1,3,1 do -- Loop to link universal connector
+      connect = simCreatePureShape(1,2,{.02, 0, 0}, 1)
       simSetObjectName(connect, "Link"..tostring(i).."_Joint")
-      simSetObjectInt32Parameter(connect, 3019,tonumber("0101010111111111",2))
+      simSetObjectInt32Parameter(connect, 3019,tonumber("1111111101010101",2))
+      simSetShapeMassAndInertia(connect,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(connect, -1))
       jConnectHandles[i] = connect
     end
 
-    for i=4,6,1 do -- Loop to create upper links
+    for i=4,6,1 do -- Loop to end effector universal connector
       connect = simCreatePureShape(1,10,{.02, 0, 0}, 1)
       simSetObjectName(connect, "Link"..tostring(i - 3).."_EE_Joint")
-      simSetObjectInt32Parameter(connect, 3019,tonumber("0101010110101010",2))
+      simSetObjectInt32Parameter(connect, 3019,tonumber("1010101001010101",2))
+      simSetShapeMassAndInertia(connect,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(connect, -1))
       jConnectHandles[i] = connect
+    end
+end
+
+function createDummy()
+    dummyHandles = {} -- List will be in order of Tip 1, 2, 3, Target 1, 2, 3
+    local dummy = nil
+    for i=1,3,1 do -- Create tip dummies
+      dummy = simCreateDummy(.02)
+      simSetObjectName(dummy,"Link"..tostring(i).."_tip")
+      simSetObjectInt32Parameter(dummy, 10000,sim_dummy_linktype_dynamics_loop_closure)
+      dummyHandles[i] = dummy
+    end
+    for i=4,6,1 do -- Create target dummies
+      dummy = simCreateDummy(.02)
+      simSetObjectName(dummy,"Link"..tostring(i - 3).."_target")
+      simSetObjectInt32Parameter(dummy, 10000,sim_dummy_linktype_dynamics_loop_closure)
+      dummyHandles[i] = dummy
+    end
+
+    for i=1,3,1 do --Connect tip and target together using dynamics overlap constraint
+        simSetLinkDummy(dummyHandles[i], dummyHandles[i + 3])
     end
 end
 
@@ -194,7 +240,9 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       local linkDiameter = .02
       local baseDiameter = modelParam.r1*2
       local eeDiameter = modelParam.r2*2
-      local eeHeight = modelParam.l1 + modelParam.l2
+      --local eeHeight = modelParam.l1 + modelParam.l2
+      local initialAngle = math.pi/9
+      local eeHeight = modelParam.l1*math.cos(-initialAngle) + modelParam.l2*math.cos(initialAngle)
 
       -- Base Location Variable
       local basePos = {0,0,centerPlate}
@@ -210,6 +258,13 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       local uJ2Pos = {modelParam.r1*math.sqrt(3)/2,modelParam.r1*.5,centerPlate + modelParam.l1}
       local uJ3Pos = {-modelParam.r1*math.sqrt(3)/2,modelParam.r1*.5,centerPlate + modelParam.l1}
           -- EE Universal Joints
+      local eePRLJ1Pos = {0,-modelParam.r2,eeHeight}
+      local eePRLJ2Pos = {modelParam.r2*math.sqrt(3)/2,modelParam.r2*.5,eeHeight}
+      local eePRLJ3Pos = {-modelParam.r2*math.sqrt(3)/2,modelParam.r2*.5,eeHeight}
+
+      local eePPDJ1Pos = {0,-modelParam.r1,centerPlate + modelParam.l1 + modelParam.l2}
+      local eePPDJ2Pos = {modelParam.r1*math.sqrt(3)/2,modelParam.r1*.5,centerPlate + modelParam.l1 + modelParam.l2}
+      local eePPDJ3Pos = {-modelParam.r1*math.sqrt(3)/2,modelParam.r1*.5,centerPlate + modelParam.l1  + modelParam.l2}
 
       -- Joint Orientations
       local prlb1 = {0, -math.pi/2, -math.pi/2}
@@ -231,31 +286,42 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       local upPos3 = {-modelParam.r1*math.sqrt(3)/2,modelParam.r1*.5,centerPlate + modelParam.l1  + modelParam.l2/2}
 
       --Add Base
-      base = simCreatePureShape(2,10,{baseDiameter, 0, plateThickness}, 1)
+      base = simCreatePureShape(2,10,{baseDiameter, 0, plateThickness}, 100)
       simSetObjectPosition(base, -1, basePos)
       simSetObjectName(base, 'Delta_base')
       simSetObjectInt32Parameter(base, 3019,tonumber("1111111111111111",2))
+      simSetShapeMassAndInertia(base,100, {100,0,0,0,100,0,0,0,100}, simGetObjectPosition(base, -1))
 
       --Add ee
       ee = simCreatePureShape(2,10,{eeDiameter, 0, plateThickness}, 1)
       simSetObjectPosition(ee, -1, eePos)
       simSetObjectName(ee, 'Delta_ee')
       simSetObjectParent(ee, base, 1)
-      simSetObjectInt32Parameter(ee, 3019,tonumber("1010101011111111",2))
+      simSetObjectInt32Parameter(ee, 3019,tonumber("1111111110101010",2))
+      simSetShapeMassAndInertia(ee,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(ee, -1))
 
       --Create and move Base Joints: Array jointHandles
       createBaseJoints()
       simSetObjectPosition(jointHandles[1], -1, r1Pos) --Joint 1
       simSetObjectParent(jointHandles[1], base, 1)
       simSetObjectOrientation(jointHandles[1], -1, prlb1)
+      simSetJointPosition(jointHandles[1], 0)
+      simSetJointForce(jointHandles[1], 50)
+      simSetObjectInt32Parameter(jointHandles[1], 2030,1) --Lock Motor when target velocity is 0
 
       simSetObjectPosition(jointHandles[2], -1, r2Pos) --Joint 2
       simSetObjectParent(jointHandles[2], base, 1)
       simSetObjectOrientation(jointHandles[2], -1, prlb2)
+      simSetJointPosition(jointHandles[2], 0)
+      simSetJointForce(jointHandles[2], 50)
+      simSetObjectInt32Parameter(jointHandles[2], 2030,1)
 
       simSetObjectPosition(jointHandles[3], -1, r3Pos) --Joint 3
       simSetObjectParent(jointHandles[3], base, 1)
       simSetObjectOrientation(jointHandles[3], -1, prlb3)
+      simSetJointPosition(jointHandles[3], 0)
+      simSetJointForce(jointHandles[3], 50)
+      simSetObjectInt32Parameter(jointHandles[3], 2030,1)
 
       --Create links. Respondable masks are already set up for these links from function.
       createLinks(linkDiameter)
@@ -289,18 +355,18 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       -- Create joint connectors for universal joints
       createJointConnect()
 
-      --Move joint connectors next: Array jConnectHandles
+      --Move joint connectors next: Array jConnectHandles[1-3]
       simSetObjectPosition(jConnectHandles[1], -1, uJ1Pos) --Joint 1
       simSetObjectParent(jConnectHandles[1], linkJHandles[1], 1)
-      simSetObjectOrientation(jConnectHandles[1], -1, prlb1)
+      simSetObjectOrientation(jConnectHandles[1], sim_handle_parent, {0,0,0})
 
       simSetObjectPosition(jConnectHandles[2], -1, uJ2Pos) --Joint 2
       simSetObjectParent(jConnectHandles[2], linkJHandles[2], 1)
-      simSetObjectOrientation(jConnectHandles[2], -1, prlb2)
+      simSetObjectOrientation(jConnectHandles[2], sim_handle_parent, {0,0,0})
 
       simSetObjectPosition(jConnectHandles[3], -1, uJ3Pos) --Joint 3
       simSetObjectParent(jConnectHandles[3], linkJHandles[3], 1)
-      simSetObjectOrientation(jConnectHandles[3], -1, prlb3)
+      simSetObjectOrientation(jConnectHandles[3], sim_handle_parent, {0,0,0})
 
       --Move perpendicular joints to create universal: Array linkJHandles[4-6]
       simSetObjectPosition(linkJHandles[4], -1, uJ1Pos) --Joint 1
@@ -325,6 +391,86 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       simSetObjectPosition(linkHandles[6], -1, upPos3) --Lower Link 1
       simSetObjectParent(linkHandles[6], linkJHandles[6], 1)
       paramLoaded = false
+
+      -- Create ee joints
+      createEEJoints()
+
+      --Move ee_joints to end of leg: Array eeJHandles[4-6]
+      simSetObjectPosition(eeJHandles[4], -1, eePPDJ1Pos) --Joint 1
+      simSetObjectParent(eeJHandles[4], linkHandles[4], 1)
+      simSetObjectOrientation(eeJHandles[4], -1, ppdbU1)
+
+      simSetObjectPosition(eeJHandles[5], -1, eePPDJ2Pos) --Joint 2
+      simSetObjectParent(eeJHandles[5], linkHandles[5], 1)
+      simSetObjectOrientation(eeJHandles[5], -1, ppdbU2)
+
+      simSetObjectPosition(eeJHandles[6], -1, eePPDJ3Pos) --Joint 3
+      simSetObjectParent(eeJHandles[6], linkHandles[6], 1)
+      simSetObjectOrientation(eeJHandles[6], -1, ppdbU3)
+
+      --Move ee_joints to end effector: Array eeJHandles[1-3]
+      simSetObjectPosition(eeJHandles[1], -1, eePRLJ1Pos) --Joint 1
+      simSetObjectParent(eeJHandles[1], ee, 1)
+      simSetObjectOrientation(eeJHandles[1], -1, prlb1)
+
+      simSetObjectPosition(eeJHandles[2], -1, eePRLJ2Pos) --Joint 2
+      simSetObjectParent(eeJHandles[2], ee, 1)
+      simSetObjectOrientation(eeJHandles[2], -1, prlb2)
+
+      simSetObjectPosition(eeJHandles[3], -1, eePRLJ3Pos) --Joint 3
+      simSetObjectParent(eeJHandles[3], ee, 1)
+      simSetObjectOrientation(eeJHandles[3], -1, prlb3)
+
+      --Move joint connectors to end effector: Array jConnectHandles[4-6]
+      simSetObjectPosition(jConnectHandles[4], -1, eePRLJ1Pos) --Joint 1
+      simSetObjectParent(jConnectHandles[4], eeJHandles[1], 1)
+      simSetObjectOrientation(jConnectHandles[4], sim_handle_parent, {0,0,0})
+
+      simSetObjectPosition(jConnectHandles[5], -1, eePRLJ2Pos) --Joint 2
+      simSetObjectParent(jConnectHandles[5], eeJHandles[2], 1)
+      simSetObjectOrientation(jConnectHandles[5], sim_handle_parent, {0,0,0})
+
+      simSetObjectPosition(jConnectHandles[6], -1, eePRLJ3Pos) --Joint 3
+      simSetObjectParent(jConnectHandles[6], eeJHandles[3], 1)
+      simSetObjectOrientation(jConnectHandles[6], sim_handle_parent, {0,0,0})
+
+      --Create dummy for connecting legs to end effector
+      createDummy()
+
+      --Move dummy tip and targets to respective places. Legs will hold tip while EE will hold target: Array dummyHandles
+      simSetObjectPosition(dummyHandles[4], -1, eePRLJ1Pos) --Leg 1 target
+      simSetObjectParent(dummyHandles[4], jConnectHandles[4], 1)
+      simSetObjectOrientation(dummyHandles[4], sim_handle_parent, {0,0,0})
+
+      simSetObjectPosition(dummyHandles[5], -1, eePRLJ2Pos) --Leg 2 target
+      simSetObjectParent(dummyHandles[5], jConnectHandles[5], 1)
+      simSetObjectOrientation(dummyHandles[5], sim_handle_parent, {0,0,0})
+
+      simSetObjectPosition(dummyHandles[6], -1, eePRLJ3Pos) --Leg 3 target
+      simSetObjectParent(dummyHandles[6], jConnectHandles[6], 1)
+      simSetObjectOrientation(dummyHandles[6], sim_handle_parent, {0,0,0})
+
+      simSetObjectPosition(dummyHandles[1], -1, eePPDJ1Pos) --Leg 1 tip
+      simSetObjectParent(dummyHandles[1], eeJHandles[4], 1)
+      simSetObjectOrientation(dummyHandles[1], -1, simGetObjectOrientation(dummyHandles[4], -1))
+
+      simSetObjectPosition(dummyHandles[2], -1, eePPDJ2Pos) --Leg 2 tip
+      simSetObjectParent(dummyHandles[2], eeJHandles[5], 1)
+      simSetObjectOrientation(dummyHandles[2], -1, simGetObjectOrientation(dummyHandles[5], -1))
+
+      simSetObjectPosition(dummyHandles[3], -1, eePPDJ3Pos) --Leg 3 tip
+      simSetObjectParent(dummyHandles[3], eeJHandles[6], 1)
+      simSetObjectOrientation(dummyHandles[3], -1, simGetObjectOrientation(dummyHandles[6], -1))
+
+      -- Move base and link joints to approximately move tip near target for smoother dynamics transition
+      simSetJointPosition(jointHandles[1], -initialAngle)
+      simSetJointPosition(jointHandles[2], -initialAngle)
+      simSetJointPosition(jointHandles[3], -initialAngle)
+
+      simSetJointPosition(linkJHandles[1],math.pi/4)
+      simSetJointPosition(linkJHandles[2],math.pi/4)
+      simSetJointPosition(linkJHandles[3],math.pi/4)
+
   end
 end
 
