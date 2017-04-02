@@ -38,6 +38,7 @@ function clearScene(u, id)
         end
     end
     paramLoaded = false
+    modelCreated = false
 end
 
 ----------------------------------------------------------------------------------------------------------------
@@ -175,14 +176,15 @@ function loadRobot(u, id)
    for line in io.lines(fname) do
       local key = string.match(line, "^(.*)%s=")
       local value = string.match(line, "%s(%.*%d*%s-)$")
-      simAuxiliaryConsolePrint(consoleHandle,"key "..key..'\n')
-      simAuxiliaryConsolePrint(consoleHandle,"value "..tostring(value)..'\n')
+      -- simAuxiliaryConsolePrint(consoleHandle,"key "..key..'\n')
+      -- simAuxiliaryConsolePrint(consoleHandle,"value "..tostring(value)..'\n')
       param[key] = tonumber(value)
    end
 
-   for k,v in pairs(param) do
-      simAuxiliaryConsolePrint(consoleHandle,k.."   "..tostring(v)..'\n')
-   end
+   -- for k,v in pairs(param) do
+   --    simAuxiliaryConsolePrint(consoleHandle,k.."   "..tostring(v)..'\n')
+   -- end
+
    paramLoaded = true
    modelParam = param
 end
@@ -195,6 +197,29 @@ end
 
 --------------------------------------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------------------------------------
+-- Functions below are responsible for saving the model
+--------------------------------------------------------------------------------------------------------------
+function saveModel(u,id)
+  if base ~= nil then
+    local filename = simExtCustomUI_getEditValue(ui,2003)
+    if filename == "Save model as..." then
+      local out = string.format("Invalid filename. Please enter a filename!")
+      simExtCustomUI_setLabelText(ui, 1003, out)
+    else
+      local file = 'deltaModels/'..filename..'.ttm'
+      local result = simSaveModel(base, file)
+      local out = string.format("Model Saved! Saved as "..file..'\n')
+    simExtCustomUI_setLabelText(ui, 1003, out)
+    end
+  else
+    local out = string.format("Model not created. Cannot save!")
+    simExtCustomUI_setLabelText(ui, 1003, out)
+  end
+
+end
+
+---------------------------------------------------------------------------------------------------------------
 function closeEventHandler(h)
    simAddStatusbarMessage('Window '..h..' is closing...')
    simExtCustomUI_hide(h)
@@ -210,6 +235,8 @@ if (sim_call_type==sim_childscriptcall_initialization) then
            <group layout="hbox">
              <button text="Create Model" onclick="loadRobot" id="2000" />
              <button text="Clear Scene" onclick="clearScene" id="2001" />
+             <button text="Save Model"  onclick="saveModel" id="2002" />
+             <edit value="Save model as..."   id="2003" />
            </group>
 
            <label text="<big> Messages:</big>" id="1002" wordwrap="false" style="font-weight: bold;"/>
@@ -228,12 +255,13 @@ if (sim_call_type==sim_childscriptcall_initialization) then
    modelCreated = false
    if(simGetObjectHandle('Delta_base') ~= nil) then
         base = simGetObjectHandle('Delta_base')
+        modelCreated = true
    end
 end
 
 
 if (sim_call_type==sim_childscriptcall_actuation) then
-  if paramLoaded then
+  if paramLoaded and not modelCreated then
       -- Setting up static variables
       local plateThickness = .05
       local centerPlate = plateThickness/2
@@ -471,6 +499,10 @@ if (sim_call_type==sim_childscriptcall_actuation) then
       simSetJointPosition(linkJHandles[2],math.pi/4)
       simSetJointPosition(linkJHandles[3],math.pi/4)
 
+      -- Set base to be the model base. Allows for saving the model.
+      local modelProp = simGetModelProperty(base)
+      simSetModelProperty(base, simBoolOr32(modelProp, sim_modelproperty_not_model)-sim_modelproperty_not_model)
+      modelCreated = true
   end
 end
 
