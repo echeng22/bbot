@@ -102,6 +102,7 @@ function createLinks(linkDiameter)
       link = simCreatePureShape(2,10,{linkDiameter, 0, modelParam.l1}, 1)
       simSetObjectName(link, "Link"..tostring(i).."_1")
       simSetObjectInt32Parameter(link, 3019,tonumber("1111111100001111",2))
+      simSetShapeMassAndInertia(link,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(link, -1))
       linkHandles[i] = link
     end
 
@@ -109,6 +110,7 @@ function createLinks(linkDiameter)
       link = simCreatePureShape(2,10,{linkDiameter, 0, modelParam.l2}, 1)
       simSetObjectName(link, "Link"..tostring(i - 3).."_2")
       simSetObjectInt32Parameter(link, 3019,tonumber("1111111111110000",2))
+      simSetShapeMassAndInertia(link,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(link, -1))
       linkHandles[i] = link
     end
 end
@@ -121,6 +123,7 @@ function createJointConnect()
       simSetObjectName(connect, "Link"..tostring(i).."_Joint")
       simSetObjectInt32Parameter(connect, 3019,tonumber("1111111101010101",2))
       simSetShapeMassAndInertia(connect,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(connect, -1))
+      simSetObjectInt32Parameter(connect, 3004,0)
       jConnectHandles[i] = connect
     end
 
@@ -129,6 +132,7 @@ function createJointConnect()
       simSetObjectName(connect, "Link"..tostring(i - 3).."_EE_Joint")
       simSetObjectInt32Parameter(connect, 3019,tonumber("1010101001010101",2))
       simSetShapeMassAndInertia(connect,1, {1,0,0,0,1,0,0,0,1}, simGetObjectPosition(connect, -1))
+      simSetObjectInt32Parameter(connect, 3004,0)
       jConnectHandles[i] = connect
     end
 end
@@ -253,9 +257,21 @@ if (sim_call_type==sim_childscriptcall_initialization) then
    modelParam = {}
    paramLoaded = false
    modelCreated = false
-   if(simGetObjectHandle('Delta_base') ~= nil) then
+   -------Supressing error to check if object exists-----------
+   local savedMode=simGetIntegerParameter(sim_intparam_error_report_mode)
+   simSetIntegerParameter(sim_intparam_error_report_mode,0)
+
+   local modeltest = simGetObjectHandle('Delta_base')
+
+   simSetIntegerParameter(sim_intparam_error_report_mode,savedMode)
+   -------Supressing error to check if object exists-----------
+
+   if(modeltest ~= -1) then
         base = simGetObjectHandle('Delta_base')
         modelCreated = true
+   else
+        base = nil
+        simAuxiliaryConsolePrint(consoleHandle,"No model found!\n")
    end
 end
 
